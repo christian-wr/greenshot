@@ -5,7 +5,7 @@
  */
 #include "common.h"
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
 #include <intrin.h>
 #pragma function(memset)
 #pragma function(memcpy)
@@ -22,7 +22,16 @@ void* __cdecl memcpy(void* pDestination, const void* pSource, size_t cbCount)
     return pDestination;
 }
 #else
-__attribute__((optimize("no-tree-loop-distribute-patterns")))
+/* ARM64 has no rep stosb / rep movsb: byte loops, volatile so the compiler doesn't turn them back into memset / memcpy calls */
+#if defined(_MSC_VER)
+#pragma function(memset)
+#pragma function(memcpy)
+#define NO_LOOP_TO_CALL
+#else
+#define NO_LOOP_TO_CALL __attribute__((optimize("no-tree-loop-distribute-patterns")))
+#endif
+
+NO_LOOP_TO_CALL
 void* memset(void* pDestination, int value, size_t cbCount)
 {
     volatile unsigned char* p = (volatile unsigned char*)pDestination;
@@ -33,7 +42,7 @@ void* memset(void* pDestination, int value, size_t cbCount)
     return pDestination;
 }
 
-__attribute__((optimize("no-tree-loop-distribute-patterns")))
+NO_LOOP_TO_CALL
 void* memcpy(void* pDestination, const void* pSource, size_t cbCount)
 {
     volatile unsigned char* d = (volatile unsigned char*)pDestination;

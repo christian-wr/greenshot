@@ -79,6 +79,13 @@ jobs:
         path: src/Greenshot/bin/Release/net480/greenshot-mcp.exe
         if-no-files-found: error
 
+    - name: Upload ARM64 MCP server artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: artifacts-greenshot-mcp-arm64
+        path: src/Greenshot/bin/Release-ARM64/net481/greenshot-mcp.exe
+        if-no-files-found: error
+
     - name: Copy Files
       run: |
         mkdir -p ${{ github.workspace }}/artifacts
@@ -105,6 +112,15 @@ jobs:
       with:
         name: artifacts-greenshot-light-build
         path: src/Greenshot/bin/Release-Light/net480/**
+        if-no-files-found: error
+
+    # The full version for ARM64 Windows, its own build of the programs with the AnyCPU libraries and plugins of the x64 build
+    # (see BuildArm64Edition in Greenshot-Installer.csproj), for the ARM64 portable version (the installer has it from the build)
+    - name: Upload ARM64 build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: artifacts-greenshot-arm64-build
+        path: src/Greenshot/bin/Release-ARM64/net481/**
         if-no-files-found: error
 
   pre_deploy:
@@ -178,6 +194,12 @@ jobs:
           name: artifacts-greenshot-light-build
           path: artifacts-greenshot-light-build
 
+      - name: Download ARM64 build artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: artifacts-greenshot-arm64-build
+          path: artifacts-greenshot-arm64-build
+
       - name: Prepare portable folder
         run: |
           $buildArtifacts = "${{ github.workspace }}/artifacts-greenshot-build"
@@ -192,12 +214,21 @@ jobs:
           pwsh -File "${{ github.workspace }}/prepare-portable.ps1" -RepositoryRootPath ${{ github.workspace }} -BuildArtifactsPath $buildArtifacts -OutputPath $portableDir -Light
         shell: pwsh
 
+      - name: Prepare ARM64 portable folder
+        run: |
+          $buildArtifacts = "${{ github.workspace }}/artifacts-greenshot-arm64-build"
+          $portableDir = "${{ github.workspace }}/portable-arm64"
+          pwsh -File "${{ github.workspace }}/prepare-portable.ps1" -RepositoryRootPath ${{ github.workspace }} -BuildArtifactsPath $buildArtifacts -OutputPath $portableDir
+        shell: pwsh
+
       - name: Create ZIP archives
         run: |
           $zipName = "Greenshot-PORTABLE-${{ needs.pre_deploy.outputs.version }}-UNSTABLE-UNSIGNED.zip"
           Compress-Archive -Path "${{ github.workspace }}/portable/*" -DestinationPath $zipName -Force
           $lightZipName = "Greenshot-Light-PORTABLE-${{ needs.pre_deploy.outputs.version }}-UNSTABLE-UNSIGNED.zip"
           Compress-Archive -Path "${{ github.workspace }}/portable-light/*" -DestinationPath $lightZipName -Force
+          $arm64ZipName = "Greenshot-ARM64-PORTABLE-${{ needs.pre_deploy.outputs.version }}-UNSTABLE-UNSIGNED.zip"
+          Compress-Archive -Path "${{ github.workspace }}/portable-arm64/*" -DestinationPath $arm64ZipName -Force
         shell: pwsh
       
       - name: Upload portable build artifacts
@@ -242,10 +273,18 @@ jobs:
           name: artifacts-greenshot-mcp
           path: artifacts-greenshot-mcp
 
-      - name: Create MCP server ZIP
+      - name: Download ARM64 MCP server artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: artifacts-greenshot-mcp-arm64
+          path: artifacts-greenshot-mcp-arm64
+
+      - name: Create MCP server ZIPs
         run: |
           cd artifacts-greenshot-mcp
           zip "Greenshot-MCP-${{ needs.pre_deploy.outputs.version }}-win-x64.zip" greenshot-mcp.exe
+          cd ../artifacts-greenshot-mcp-arm64
+          zip "../artifacts-greenshot-mcp/Greenshot-MCP-${{ needs.pre_deploy.outputs.version }}-win-arm64.zip" greenshot-mcp.exe
         shell: bash
 
       - name: Create tag

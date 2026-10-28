@@ -240,6 +240,15 @@ Continuous builds are automatically created for every commit to the `main` branc
 - Greenshot follows the Windows "Text size" setting and the "Animation effects" switch
 - In the capture window, Tab and Shift+Tab select the next or previous window, and a screen reader hears the mode, window and size
 
+#### 💻 Native on ARM64 Windows
+
+**Greenshot runs natively on ARM64 Windows** (e.g. Snapdragon laptops), no longer emulated as x64
+- The installer installs Greenshot built for ARM64 on ARM64 Windows, and the x64 one everywhere else; an update of an existing installation switches to it by itself
+- It needs .NET Framework 4.8.1, which Windows 11 has; the installer checks for it
+- There is a portable version for ARM64 (Greenshot-ARM64-PORTABLE) and greenshot-mcp for ARM64 (Greenshot-MCP-win-arm64)
+- Greenshot Light (AnyCPU) already ran natively on ARM64, it stays as it is
+- Bug reports and the log show the architecture Greenshot runs as and the one of Windows, so an emulated Greenshot can be recognized
+
 ### Bug Fixes & Improvements
 
 #### 🐛 Critical Fixes

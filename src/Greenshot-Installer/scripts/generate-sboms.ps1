@@ -2,7 +2,9 @@
     [string]$SolutionDir,
     [string]$Configuration,
     [string]$TargetFramework,
-    [string]$SbomVersion
+    [string]$SbomVersion,
+    # The build output the SBOM describes, by default bin\<Configuration>\<TargetFramework>; the ARM64 build has its own (bin\Release-ARM64\net481)
+    [string]$BuildOutputPath
 )
 
 $csproj = Join-Path $SolutionDir "Greenshot\Greenshot.csproj"
@@ -32,7 +34,7 @@ try {
     }
     $xml.Save($csproj)
     
-    $outputPath = Join-Path $SolutionDir "Greenshot\bin\$Configuration\$TargetFramework"
+    $outputPath = if ($BuildOutputPath) { $BuildOutputPath } else { Join-Path $SolutionDir "Greenshot\bin\$Configuration\$TargetFramework" }
     
     Write-Host "Restoring dotnet tools..."
     Run-Command { dotnet tool restore }

@@ -177,7 +177,8 @@ and warns when its version isn't Greenshot's. The excluded applications are edit
 ## Install
 
 `greenshot-mcp.exe` is not part of the installer or the portable version, it is a separate download on the
-[releases page](https://github.com/greenshot/greenshot/releases): `Greenshot-MCP-<version>-win-x64.zip`. The zip holds
+[releases page](https://github.com/greenshot/greenshot/releases): `Greenshot-MCP-<version>-win-x64.zip`, or
+`Greenshot-MCP-<version>-win-arm64.zip` for ARM64 Windows. The zip holds
 nothing but the single, self-contained `greenshot-mcp.exe`: the zip carries the version in its name, while the exe keeps
 the exact name Greenshot trusts (`greenshot-mcp.exe`, see below), so it doesn't have to be renamed.
 
@@ -347,12 +348,15 @@ The Inspector (node.exe) is then the AI tool Greenshot asks about.
 ### Release builds
 
 A Release build of the solution publishes greenshot-mcp as its very last step (target `PublishMcpServer` in
-`Greenshot-Installer.csproj`): a single native exe in `src\Greenshot\bin\Release\net480`, next to `Greenshot.exe`.
-It is published after `checksum.SHA256`, the SBOM, the installers and the portable versions, so it is in none of them;
-a greenshot-mcp.exe of an earlier build is removed before the checksums are made. The release workflow uploads it and
-attaches `Greenshot-MCP-<version>-win-x64.zip`, which holds only that exe, to the GitHub release.
+`Greenshot-Installer.csproj`): a single native exe in `src\Greenshot\bin\Release\net480`, next to `Greenshot.exe`,
+and one for ARM64 in `src\Greenshot\bin\Release-ARM64\net481`, next to the ARM64 `Greenshot.exe`.
+They are published after `checksum.SHA256`, the SBOM, the installers and the portable versions, so they are in none of them;
+a greenshot-mcp.exe of an earlier build is removed before the checksums are made. The release workflow uploads them and
+attaches `Greenshot-MCP-<version>-win-x64.zip` and `Greenshot-MCP-<version>-win-arm64.zip`, which hold only that exe, to
+the GitHub release.
 
-Native AOT needs the "Desktop development with C++" workload of Visual Studio. If the publish fails with
+Native AOT needs the "Desktop development with C++" workload of Visual Studio, with the MSVC x64 and ARM64 build tools
+(the ARM64 exe is cross-compiled). If the publish fails with
 "'vswhere.exe' is not recognized", add `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer` to the PATH. To build
 a Release without it, pass `/p:SkipMcpPublish=true`. To publish only greenshot-mcp:
 
@@ -360,7 +364,7 @@ a Release without it, pass `/p:SkipMcpPublish=true`. To publish only greenshot-m
 dotnet publish src/Greenshot.Mcp -c Release -r win-x64
 ```
 
-The result is in `src/Greenshot.Mcp/bin/Release/net10.0-windows/win-x64/publish`.
+The result is in `src/Greenshot.Mcp/bin/Release/net10.0-windows/win-x64/publish` (`-r win-arm64` for ARM64).
 
 ### How it fits together
 

@@ -1,10 +1,17 @@
 ; Every program file by name, no wildcards: scripts\check-core-files.ps1 fails the build when the build output has one that
 ; isn't listed here (or the other way around), so nothing a package brings along ships by accident.
+; The full version installs the files marked X64Only on x64 Windows only: ARM64 Windows gets the ones of the ARM64 build instead
+; (Arm64ReleaseDir, see the end of [Files]). Greenshot Light is AnyCPU, it installs them everywhere.
+#ifdef IsLightEdition
+  #define X64Only ""
+#else
+  #define X64Only "; Check: not IsArm64"
+#endif
 [Files]
-Source: {#ReleaseDir}\Greenshot.exe; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
+Source: {#ReleaseDir}\Greenshot.exe; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}{#X64Only}
 Source: {#ReleaseDir}\Greenshot.Base.dll; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
 Source: {#ReleaseDir}\Greenshot.Editor.dll; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
-Source: {#ReleaseDir}\Greenshot.exe.config; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
+Source: {#ReleaseDir}\Greenshot.exe.config; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}{#X64Only}
 Source: {#ReleaseDir}\log4net.dll; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
 Source: {#ReleaseDir}\log4net.xml; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
 Source: {#ReleaseDir}\Dapplo.Ini.dll; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
@@ -47,11 +54,11 @@ Source: {#ReleaseDir}\Hardcodet.NotifyIcon.Wpf.dll; DestDir: {app}; Components: 
 Source: {#ReleaseDir}\Microsoft.Bcl.AsyncInterfaces.dll; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
 Source: {#ReleaseDir}\Microsoft.Bcl.HashCode.dll; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
 Source: {#ReleaseDir}\Microsoft.IO.RecyclableMemoryStream.dll; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
-Source: {#ReleaseDir}\checksum.SHA256; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
-Source: {#ReleaseDir}\bom.json; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist
-Source: {#ReleaseDir}\bom.xml; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist
-Source: {#ReleaseDir}\manifest.spdx.json; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist
-Source: {#ReleaseDir}\manifest.spdx.json.sha256; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist
+Source: {#ReleaseDir}\checksum.SHA256; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}{#X64Only}
+Source: {#ReleaseDir}\bom.json; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist{#X64Only}
+Source: {#ReleaseDir}\bom.xml; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist{#X64Only}
+Source: {#ReleaseDir}\manifest.spdx.json; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist{#X64Only}
+Source: {#ReleaseDir}\manifest.spdx.json.sha256; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist{#X64Only}
 Source: {#ReleaseDir}\Twemoji.Mozilla.ttf; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
 Source: {#ReleaseDir}\emojis.xml; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
 Source: additional_files\installer.txt; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
@@ -61,8 +68,19 @@ Source: additional_files\readme.txt; DestDir: {app}; Components: greenshot; Flag
 Source: additional_files\autostart.inf; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
 #ifndef IsLightEdition
 ; Not in Greenshot Light: it opens files with Greenshot.exe (see tasks-icons-reg.iss)
-Source: {#ReleaseDir}\greenshot-proxy.exe; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
-Source: {#ReleaseDir}\greenshot-cli.exe; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}
+Source: {#ReleaseDir}\greenshot-proxy.exe; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}{#X64Only}
+Source: {#ReleaseDir}\greenshot-cli.exe; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}{#X64Only}
+; ARM64 Windows: the programs built for ARM64 and the checksums and SBOM of that build (bin\Release-ARM64, see BuildArm64Edition in
+; Greenshot-Installer.csproj), instead of the X64Only files above. Everything else is the same for both.
+Source: {#Arm64ReleaseDir}\Greenshot.exe; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}; Check: IsArm64
+Source: {#Arm64ReleaseDir}\Greenshot.exe.config; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}; Check: IsArm64
+Source: {#Arm64ReleaseDir}\greenshot-proxy.exe; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}; Check: IsArm64
+Source: {#Arm64ReleaseDir}\greenshot-cli.exe; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}; Check: IsArm64
+Source: {#Arm64ReleaseDir}\checksum.SHA256; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags}; Check: IsArm64
+Source: {#Arm64ReleaseDir}\bom.json; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist; Check: IsArm64
+Source: {#Arm64ReleaseDir}\bom.xml; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist; Check: IsArm64
+Source: {#Arm64ReleaseDir}\manifest.spdx.json; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist; Check: IsArm64
+Source: {#Arm64ReleaseDir}\manifest.spdx.json.sha256; DestDir: {app}; Components: greenshot; Flags: {#DefaultInstallFlags} skipifsourcedoesntexist; Check: IsArm64
 #endif
 
 ; Core language files

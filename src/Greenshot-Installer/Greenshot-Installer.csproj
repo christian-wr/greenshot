@@ -2,6 +2,8 @@
   <Target Name="CoreCompile" />
   <PropertyGroup>
     <SkipCopyBuildProduct>true</SkipCopyBuildProduct>
+    <!-- The full version for ARM64 Windows, see BuildArm64Edition -->
+    <Arm64OutputDir>$(SolutionDir)Greenshot\bin\$(Configuration)-ARM64\net481</Arm64OutputDir>
   </PropertyGroup>
   
   <ItemGroup>
@@ -78,29 +80,71 @@
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\generate-checksums.ps1&quot; -OutputDir &quot;$(LightOutputDir)&quot;" />
   </Target>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent" DependsOnTargets="BuildLightEdition" Condition="'$(Configuration)' == 'Release'">
+  <!--
+    The full version for ARM64 Windows: Greenshot.exe (built with /p:GreenshotArchitecture=ARM64, see Greenshot.csproj), greenshot-proxy.exe
+    and greenshot-cli.exe built for ARM64, in bin\$(Configuration)-ARM64\net481. Everything else (libraries, plugins, resources) is AnyCPU and
+    copied from the x64 output after it was pruned and signed, so the files setup.iss installs on both are the same. The directory has the
+    layout of an ARM64 installation with its own checksum.SHA256 and SBOM; setup.iss installs its programs on ARM64 Windows and the
+    ARM64 portable version is made from it.
+  -->
+  <Target Name="BuildArm64Edition" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <X64OutputDir>$(SolutionDir)Greenshot\bin\$(Configuration)\$(TargetFramework)</X64OutputDir>
+    </PropertyGroup>
+    <!-- greenshot-mcp.exe is published after everything else (see PublishMcpServer), remove the one of a previous build -->
+    <Delete Files="$(Arm64OutputDir)\greenshot-mcp.exe" />
+    <!-- Its own restore (net481, win-arm64, in obj\ARM64): ExcludeRestorePackageImports makes MSBuild evaluate the project again for the build,
+         with what the restore wrote, as msbuild -restore does -->
+    <MSBuild Projects="$(SolutionDir)Greenshot\Greenshot.csproj" Targets="Restore" Properties="Configuration=$(Configuration);GreenshotArchitecture=ARM64;ExcludeRestorePackageImports=true" />
+    <MSBuild Projects="$(SolutionDir)Greenshot\Greenshot.csproj" Targets="Build" Properties="Configuration=$(Configuration);GreenshotArchitecture=ARM64" />
+    <MSBuild Projects="$(SolutionDir)greenshot-proxy\greenshot-proxy.vcxproj;$(SolutionDir)greenshot-proxy\greenshot-cli.vcxproj" Targets="Build" Properties="Configuration=$(Configuration);Platform=ARM64;SolutionDir=$(SolutionDir)" />
+    <ItemGroup>
+      <!-- Not the programs built for ARM64 (with their .config and .pdb), and not what is made for this directory below -->
+      <Arm64SharedFiles Include="$(X64OutputDir)\**\*" Exclude="$(X64OutputDir)\Greenshot.exe*;$(X64OutputDir)\Greenshot.pdb;$(X64OutputDir)\greenshot-proxy.*;$(X64OutputDir)\greenshot-cli.*;$(X64OutputDir)\greenshot-mcp.*;$(X64OutputDir)\checksum.SHA256;$(X64OutputDir)\bom.*;$(X64OutputDir)\manifest.spdx.json*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(Arm64SharedFiles)" DestinationFiles="@(Arm64SharedFiles->'$(Arm64OutputDir)\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <!-- Like for x64: sign (only the ARM64 programs have no signature yet), then the SBOM and the checksums describe the signed files -->
+    <Exec Condition="'$(CertumThumbprint)' != ''" Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\sign-files.ps1&quot; -OutputDir &quot;$(Arm64OutputDir)&quot; -Thumbprint &quot;$(CertumThumbprint)&quot;" />
+    <PropertyGroup>
+      <SbomVersion Condition="'$(NuGetPackageVersion)' != ''">$(NuGetPackageVersion)</SbomVersion>
+      <SbomVersion Condition="'$(SbomVersion)' == ''">$(BuildVersionSimple)</SbomVersion>
+      <SbomVersion Condition="'$(SbomVersion)' == ''">1.0.0</SbomVersion>
+    </PropertyGroup>
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;&amp; '$(MSBuildThisFileDirectory)scripts\generate-sboms.ps1' -SolutionDir '$(SolutionDir)' -Configuration '$(Configuration)' -TargetFramework '$(TargetFramework)' -SbomVersion '$(SbomVersion)' -BuildOutputPath '$(Arm64OutputDir)'&quot;" StdOutEncoding="UTF-8" StdErrEncoding="UTF-8" />
+    <ItemGroup>
+      <Arm64SpdxManifestFiles Include="$(Arm64OutputDir)\_manifest\**\manifest.spdx.json*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(Arm64SpdxManifestFiles)" DestinationFolder="$(Arm64OutputDir)" />
+    <RemoveDir Directories="$(Arm64OutputDir)\_manifest" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\generate-checksums.ps1&quot; -OutputDir &quot;$(Arm64OutputDir)&quot;" />
+  </Target>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" DependsOnTargets="BuildLightEdition;BuildArm64Edition" Condition="'$(Configuration)' == 'Release'">
     <SetEnvironmentVariableTask Name="BuildVersionSimple" Value="$(BuildVersionSimple)" />
     <SetEnvironmentVariableTask Name="BuildVersionEnhanced" Value="$(NuGetPackageVersion)" />
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\check-core-files.ps1&quot; -OutputDir &quot;$(SolutionDir)Greenshot\bin\$(Configuration)\$(TargetFramework)&quot; -CoreFilesIss &quot;$(MSBuildThisFileDirectory)includes\core-files.iss&quot;" />
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\check-core-files.ps1&quot; -OutputDir &quot;$(SolutionDir)Greenshot\bin\$(Configuration)-Light\$(TargetFramework)&quot; -CoreFilesIss &quot;$(MSBuildThisFileDirectory)includes\core-files.iss&quot; -Light" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\check-core-files.ps1&quot; -OutputDir &quot;$(Arm64OutputDir)&quot; -CoreFilesIss &quot;$(MSBuildThisFileDirectory)includes\core-files.iss&quot; -Arm64" />
     <Exec Command="echo Building installer" />
     <Exec Command="$(PkgTools_InnoSetup)\tools\ISCC.exe -q $(SolutionDir)$(ProjectName)\setup.iss" />
     <Exec Command="echo Building light-installer" />
     <Exec Command="$(PkgTools_InnoSetup)\tools\ISCC.exe -q $(SolutionDir)$(ProjectName)\setup-light.iss" />
-    <!-- The portable versions (full and light), as the release workflow creates them -->
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\create-portable-zips.ps1&quot; -RepositoryRootPath &quot;$(SolutionDir)..&quot; -BuildArtifactsPath &quot;$(SolutionDir)Greenshot\bin\$(Configuration)\$(TargetFramework)&quot; -LightBuildArtifactsPath &quot;$(SolutionDir)Greenshot\bin\$(Configuration)-Light\$(TargetFramework)&quot; -InstallerDir &quot;$(SolutionDir)..\installer&quot;" />
+    <!-- The portable versions (full, ARM64 and light), as the release workflow creates them -->
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\create-portable-zips.ps1&quot; -RepositoryRootPath &quot;$(SolutionDir)..&quot; -BuildArtifactsPath &quot;$(SolutionDir)Greenshot\bin\$(Configuration)\$(TargetFramework)&quot; -LightBuildArtifactsPath &quot;$(SolutionDir)Greenshot\bin\$(Configuration)-Light\$(TargetFramework)&quot; -Arm64BuildArtifactsPath &quot;$(Arm64OutputDir)&quot; -InstallerDir &quot;$(SolutionDir)..\installer&quot;" />
   </Target>
 
   <!--
     The MCP server (greenshot-mcp.exe, Native AOT, a single exe) as the very last step: next to Greenshot.exe for the release
     download, but not in checksum.SHA256, the SBOM, the installers or the portable versions, which are made before.
-    Needs the C++ build tools of Visual Studio (see docs/vNext/mcp-server.md); skip it with /p:SkipMcpPublish=true.
+    Built for x64 and for ARM64 (next to the ARM64 Greenshot.exe, see BuildArm64Edition). Needs the C++ build tools of Visual Studio,
+    x64 and ARM64 (see docs/vNext/mcp-server.md); skip it with /p:SkipMcpPublish=true.
   -->
   <Target Name="PublishMcpServer" AfterTargets="PostBuild" Condition="'$(Configuration)' == 'Release' and '$(SkipMcpPublish)' != 'true'">
-    <PropertyGroup>
-      <McpPublishDir>$(MSBuildThisFileDirectory)obj\mcp-publish\win-x64\</McpPublishDir>
-    </PropertyGroup>
-    <Exec Command="dotnet publish &quot;$(SolutionDir)Greenshot.Mcp\Greenshot.Mcp.csproj&quot; -c Release -r win-x64 -o &quot;$(McpPublishDir.TrimEnd('\'))&quot;" />
-    <Copy SourceFiles="$(McpPublishDir)greenshot-mcp.exe" DestinationFolder="$(SolutionDir)Greenshot\bin\$(Configuration)\$(TargetFramework)" />
+    <ItemGroup>
+      <McpRuntime Include="win-x64" OutputDir="$(SolutionDir)Greenshot\bin\$(Configuration)\$(TargetFramework)" />
+      <McpRuntime Include="win-arm64" OutputDir="$(Arm64OutputDir)" />
+    </ItemGroup>
+    <Exec Command="dotnet publish &quot;$(SolutionDir)Greenshot.Mcp\Greenshot.Mcp.csproj&quot; -c Release -r %(McpRuntime.Identity) -o &quot;$(MSBuildThisFileDirectory)obj\mcp-publish\%(McpRuntime.Identity)&quot;" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)obj\mcp-publish\%(McpRuntime.Identity)\greenshot-mcp.exe" DestinationFolder="%(McpRuntime.OutputDir)" />
   </Target>
 </Project>

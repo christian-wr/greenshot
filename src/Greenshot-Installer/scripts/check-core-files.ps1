@@ -10,16 +10,23 @@
     greenshot-mcp.exe, which is a separate download.
     With -Light the output is the one of Greenshot Light (setup-light.iss): lines in #ifndef IsLightEdition are not installed,
     lines in #ifdef IsLightEdition only there.
+    With -Arm64 the output is the one of the ARM64 build (bin\Release-ARM64, the layout of an installation on ARM64 Windows):
+    the {#Arm64ReleaseDir} lines are installed instead of the {#ReleaseDir} lines with {#X64Only}.
 #>
 param(
     [Parameter(Mandatory = $true)]
     [string]$OutputDir,
     [Parameter(Mandatory = $true)]
     [string]$CoreFilesIss,
-    [switch]$Light
+    [switch]$Light,
+    [switch]$Arm64
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ($Light -and $Arm64) {
+    throw "Greenshot Light has no ARM64 build, use -Light or -Arm64"
+}
 
 $notShipped = @('Microsoft.Build.*.dll', 'Microsoft.IO.Redist.dll', 'Microsoft.NET.StringTools.dll', 'greenshot-mcp.exe')
 
@@ -32,8 +39,12 @@ foreach ($line in Get-Content $CoreFilesIss) {
     if ($line -match '^\s*#else\b' -and $included.Count -gt 0) { $included.Push(-not $included.Pop()); continue }
     if ($line -match '^\s*#endif\b' -and $included.Count -gt 0) { [void]$included.Pop(); continue }
     if ($included -contains $false) { continue }
-    if ($line -match '^\s*Source:\s*\{#ReleaseDir\}\\([^;]+);') {
-        $name = $Matches[1].Trim()
+    if ($line -match '^\s*Source:\s*\{#(ReleaseDir|Arm64ReleaseDir)\}\\([^;]+);') {
+        $isArm64Line = $Matches[1] -eq 'Arm64ReleaseDir'
+        $name = $Matches[2].Trim()
+        # x64 installs the X64Only files, ARM64 the Arm64ReleaseDir ones instead
+        if ($Arm64 -and $line.Contains('{#X64Only}')) { continue }
+        if (-not $Arm64 -and $isArm64Line) { continue }
         if ($name.Contains('*') -or $name.Contains('?')) {
             throw "core-files.iss must name each file, not '$name'"
         }

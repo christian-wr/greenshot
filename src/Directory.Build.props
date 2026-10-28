@@ -47,6 +47,14 @@
   </PropertyGroup>
 
   <!--
+    The ARM64 build of Greenshot.exe (/p:GreenshotArchitecture=ARM64, see Greenshot.csproj) targets net481 and needs its own restore:
+    sharing obj\project.assets.json with the x64 build (net480) would break one of them. The SDK uses it early, so it is set here.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Greenshot' And '$(GreenshotArchitecture)' == 'ARM64'">
+    <BaseIntermediateOutputPath>obj\ARM64\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+
+  <!--
     NuGet audit warnings that don't apply to Greenshot, see "Known vulnerability warnings" in README.md for the reasons.
     Remove an entry when the package that caused it is updated.
   -->

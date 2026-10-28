@@ -57,9 +57,9 @@ IDE System Requirements:
 ------------------------
 
 * Windows OS environment
-* Visual Studio 2026 (the native projects use the v145 C++ toolset), with the **Desktop development with C++** workload, MSVC v145 x64/x86 build tools, and a Windows 10 SDK
+* Visual Studio 2026 (the native projects use the v145 C++ toolset), with the **Desktop development with C++** workload, MSVC v145 x64/x86 build tools, and a Windows 10 SDK; the Release build also needs the MSVC v145 ARM64 build tools (for the ARM64 build, see below)
 * .NET SDK 10.0.100 or newer (Greenshot.Mcp targets .NET 10)
-* .NET Framework 4.8 Developer Pack / targeting pack
+* .NET Framework 4.8 Developer Pack / targeting pack (the ARM64 build of Greenshot.exe targets .NET Framework 4.8.1, its reference assemblies come from NuGet)
 
 Build Instructions:
 -------------------
@@ -81,11 +81,26 @@ Solution configurations:
 | Configuration | Builds | Output |
 |---|---|---|
 | Debug (the default) | Everything but the installer project: Greenshot, the plugins, greenshot-cli.exe and greenshot-proxy, greenshot-mcp, the tests | `src\Greenshot\bin\Debug` |
-| Release | Everything, plus the release files: checksum.SHA256, the SBOM, Greenshot Light, the installers and greenshot-mcp | `src\Greenshot\bin\Release` and `installer\` |
+| Release | Everything, plus the release files: checksum.SHA256, the SBOM, Greenshot Light, the ARM64 build, the installers and greenshot-mcp | `src\Greenshot\bin\Release`, `src\Greenshot\bin\Release-ARM64` and `installer\` |
 | Debug Light | Greenshot Light only: Greenshot, Greenshot.Base, Greenshot.Editor (and the build tasks) | `src\Greenshot\bin\Debug-Light` |
 | Release Light | The same, optimized | `src\Greenshot\bin\Release-Light` |
 
 Debug never makes checksums, an SBOM or installers; only Release does.
+
+ARM64:
+------
+
+Greenshot runs natively on ARM64 Windows. Only the programs are built for ARM64: Greenshot.exe (`/p:GreenshotArchitecture=ARM64`, it targets .NET Framework 4.8.1, the first one with native ARM64 support), greenshot-proxy.exe and greenshot-cli.exe (platform ARM64) and greenshot-mcp (`win-arm64`). The libraries and plugins are AnyCPU and the same as for x64. The Release build of the installer project builds them in `src\Greenshot\bin\Release-ARM64\net481`, with the libraries and plugins of the x64 build, its own checksum.SHA256 and SBOM. The installer installs the ARM64 programs on ARM64 Windows and the x64 ones everywhere else, and there is a separate ARM64 portable version. Greenshot Light is AnyCPU and runs natively on ARM64 as it is.
+
+To build and debug the ARM64 Greenshot.exe on an ARM64 machine:
+
+```powershell
+msbuild src\Greenshot\Greenshot.csproj /restore /p:Configuration=Debug /p:GreenshotArchitecture=ARM64
+msbuild src\greenshot-proxy\greenshot-proxy.vcxproj /p:Configuration=Debug /p:Platform=ARM64 /p:SolutionDir=%CD%\src\
+msbuild src\greenshot-proxy\greenshot-cli.vcxproj /p:Configuration=Debug /p:Platform=ARM64 /p:SolutionDir=%CD%\src\
+```
+
+The output is in `src\Greenshot\bin\Debug-ARM64\net481`. Plugins are loaded from the `Plugins` directory next to Greenshot.exe, copy `src\Greenshot\bin\Debug\net480\Plugins` there to use them.
 
 Running tests:
 --------------

@@ -11,6 +11,8 @@
 #ifndef ReleaseDir
   #define ReleaseDir "..\Greenshot\bin\Release\net480"
 #endif
+; The full version installs the programs of the ARM64 build on ARM64 Windows, see core-files.iss
+#define Arm64ReleaseDir "..\Greenshot\bin\Release-ARM64\net481"
 #define PluginDir "..\Greenshot\bin\Release\net480\Plugins"
 #define CertumThumbprint GetEnv('CertumThumbprint')
 #define DefaultInstallFlags "overwritereadonly ignoreversion"

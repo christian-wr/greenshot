@@ -22,9 +22,9 @@
 
 ### Prerequisites
 - **Operating System**: Windows (Linux/Mac not supported for building)
-- **Build Tools**: Visual Studio 2026 with the Desktop development with C++ workload, MSVC v145 x64/x86 build tools, Windows 10 SDK, and the .NET Framework 4.8 Developer Pack
+- **Build Tools**: Visual Studio 2026 with the Desktop development with C++ workload, MSVC v145 x64/x86 build tools (and ARM64 for the Release build), Windows 10 SDK, and the .NET Framework 4.8 Developer Pack
 - **.NET SDK**: .NET SDK 10.0.100 or newer (the MCP server targets .NET 10)
-- **Target Frameworks**: Most projects target .NET Framework 4.8 (`net480`); `Greenshot.Mcp` targets `net10.0-windows`
+- **Target Frameworks**: Most projects target .NET Framework 4.8 (`net480`); `Greenshot.Mcp` targets `net10.0-windows`; the ARM64 build of Greenshot.exe (`/p:GreenshotArchitecture=ARM64`) targets `net481`, see "ARM64" in README.md
 - **Git Clone**: MUST use full clone with history (NOT shallow clone) due to Nerdbank.GitVersioning requirements
 
 ### Critical Build Notes
@@ -46,7 +46,7 @@ msbuild src/Greenshot.sln /p:Configuration=Release /t:Rebuild /v:normal
 ```
 **Output**: `src/Greenshot/bin/Release/net480/` (main executable and plugins)
 
-**Note**: Release also builds Greenshot Light, installers, checksums, SBOMs, portable ZIPs, and the MCP server. It requires the C++ build tools and .NET 10 SDK.
+**Note**: Release also builds Greenshot Light, the ARM64 build (`src/Greenshot/bin/Release-ARM64/net481/`), installers, checksums, SBOMs, portable ZIPs, and the MCP server. It requires the C++ build tools (x64 and ARM64) and .NET 10 SDK.
 
 ### Build for Debug
 ```powershell
@@ -131,8 +131,8 @@ Each plugin follows a consistent structure:
 **OAuth credentials**: The build templates currently consume Box, Dropbox, and Imgur credentials. They are optional for local builds; without them, those integrations use placeholder credentials.
 
 ### Build Artifacts
-- **Installers**: `installer/Greenshot-INSTALLER-*.exe` and `installer/Greenshot-Light-INSTALLER-*.exe` (unsigned/unstable names for local builds; signing depends on the configured certificate)
-- **Portable**: `installer/Greenshot-PORTABLE-*.zip` and `installer/Greenshot-Light-PORTABLE-*.zip`
+- **Installers**: `installer/Greenshot-INSTALLER-*.exe` and `installer/Greenshot-Light-INSTALLER-*.exe` (unsigned/unstable names for local builds; signing depends on the configured certificate); the full installer installs the ARM64 programs on ARM64 Windows
+- **Portable**: `installer/Greenshot-PORTABLE-*.zip`, `installer/Greenshot-ARM64-PORTABLE-*.zip` and `installer/Greenshot-Light-PORTABLE-*.zip`
 
 ## Coding Conventions
 

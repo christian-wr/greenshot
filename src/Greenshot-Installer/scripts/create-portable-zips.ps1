@@ -1,11 +1,14 @@
 <#
 .SYNOPSIS
-    Creates the portable ZIP files (full and light) next to the installers of a local Release build.
+    Creates the portable ZIP files (full, ARM64 and light) next to the installers of a local Release build.
 
 .DESCRIPTION
     Uses prepare-portable.ps1, like the release workflow. The ZIP files are named after the installer that was just
-    built: Greenshot-INSTALLER-<version>.exe gives Greenshot-PORTABLE-<version>.zip and Greenshot-Light-PORTABLE-<version>.zip.
-    Greenshot Light is its own build of Greenshot.exe (bin\Release-Light, see Greenshot.csproj).
+    built: Greenshot-INSTALLER-<version>.exe gives Greenshot-PORTABLE-<version>.zip, Greenshot-ARM64-PORTABLE-<version>.zip
+    and Greenshot-Light-PORTABLE-<version>.zip.
+    Greenshot Light is its own build of Greenshot.exe (bin\Release-Light, see Greenshot.csproj), and so is the full version for
+    ARM64 Windows (bin\Release-ARM64, see BuildArm64Edition in Greenshot-Installer.csproj); without -Arm64BuildArtifactsPath
+    there is no ARM64 ZIP file.
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -14,6 +17,7 @@ param(
     [string]$BuildArtifactsPath,
     [Parameter(Mandatory = $true)]
     [string]$LightBuildArtifactsPath,
+    [string]$Arm64BuildArtifactsPath,
     [Parameter(Mandatory = $true)]
     [string]$InstallerDir
 )
@@ -27,7 +31,11 @@ if (-not $installer) {
 $version = $installer.BaseName.Substring('Greenshot-INSTALLER-'.Length)
 
 $prepareScript = Join-Path $RepositoryRootPath 'prepare-portable.ps1'
-foreach ($edition in @(@{ Prefix = 'Greenshot'; Light = $false; Path = $BuildArtifactsPath }, @{ Prefix = 'Greenshot-Light'; Light = $true; Path = $LightBuildArtifactsPath })) {
+$editions = @(@{ Prefix = 'Greenshot'; Light = $false; Path = $BuildArtifactsPath }, @{ Prefix = 'Greenshot-Light'; Light = $true; Path = $LightBuildArtifactsPath })
+if ($Arm64BuildArtifactsPath) {
+    $editions += @{ Prefix = 'Greenshot-ARM64'; Light = $false; Path = $Arm64BuildArtifactsPath }
+}
+foreach ($edition in $editions) {
     $staging = Join-Path ([System.IO.Path]::GetTempPath()) ("greenshot-portable-" + [guid]::NewGuid().ToString('N'))
     try {
         & $prepareScript -RepositoryRootPath $RepositoryRootPath -BuildArtifactsPath $edition.Path -OutputPath $staging -Light:$edition.Light

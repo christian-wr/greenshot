@@ -26,7 +26,7 @@
   <!--
     The full version is a 64-bit exe: COM doesn't give the click on a toast to a Greenshot it started for it when Greenshot.exe is
     AnyCPU (its PE header says 32-bit, although it runs as a 64-bit process). Greenshot Light has no toasts and stays AnyCPU,
-    so it also runs on 32-bit Windows and natively on ARM64.
+    so it also runs on 32-bit Windows and natively on ARM64. For ARM64 Windows the full version has its own ARM64 exe, see below.
   -->
   <PropertyGroup Condition="'$(GreenshotEdition)' == 'Full'">
     <PlatformTarget>x64</PlatformTarget>
@@ -34,7 +34,26 @@
   <PropertyGroup>
     <!-- Restore for both, the Release build of Greenshot-Installer builds Light (win-x86, as AnyCPU) with the restore of the full version -->
     <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
+    <!-- The libraries (Greenshot.Base, Greenshot.Editor, Greenshot.BuildTasks) stay on this one, also for the ARM64 exe -->
+    <GreenshotLibraryTargetFramework>$(TargetFramework)</GreenshotLibraryTargetFramework>
   </PropertyGroup>
+  <!--
+    The full version for ARM64 Windows (/p:GreenshotArchitecture=ARM64): only Greenshot.exe is built for ARM64, the libraries and
+    plugins are AnyCPU and the same as for x64. .NET Framework runs ARM64 code natively from 4.8.1 on (Windows 11 has it), so this exe
+    targets net481. It is built next to the x64 version, in bin\Debug-ARM64 or bin\Release-ARM64, with its own restore
+    (obj\ARM64, see Directory.Build.props); the Release build of Greenshot-Installer builds it too and the installer installs it on
+    ARM64 Windows.
+  -->
+  <PropertyGroup Condition="'$(GreenshotEdition)' == 'Full' And '$(GreenshotArchitecture)' == 'ARM64'">
+    <PlatformTarget>ARM64</PlatformTarget>
+    <TargetFramework>net481</TargetFramework>
+    <OutputPath>bin\$(GreenshotBaseConfiguration)-ARM64\</OutputPath>
+    <!-- Only obj\ARM64 is excluded by default, not what the x64 build generates in obj (e.g. its AssemblyInfo.cs) -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**</DefaultItemExcludes>
+  </PropertyGroup>
+  <Target Name="CheckGreenshotArchitecture" BeforeTargets="PrepareForBuild" Condition="'$(GreenshotArchitecture)' != '' And ('$(GreenshotArchitecture)' != 'ARM64' Or '$(GreenshotEdition)' != 'Full')">
+    <Error Text="GreenshotArchitecture=$(GreenshotArchitecture) is not supported for Greenshot $(GreenshotEdition): only the full version has an ARM64 build (Greenshot Light is AnyCPU)" />
+  </Target>
   <!--
     Greenshot Light (/p:GreenshotEdition=Light, or the DebugLight / ReleaseLight configurations): the basics only, for the Light installer
     (setup-light.iss) and the Light portable version. GREENSHOT_LIGHT compiles out loading plugins, the AI tools (greenshot-mcp) and the
@@ -119,10 +138,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The edition only changes Greenshot.exe, the libraries are the same (and built as Debug or Release for DebugLight and ReleaseLight) -->
-    <ProjectReference Include="..\Greenshot.Base\Greenshot.Base.csproj" UndefineProperties="GreenshotEdition" SetConfiguration="Configuration=$(GreenshotBaseConfiguration)" />
-    <ProjectReference Include="..\Greenshot.Editor\Greenshot.Editor.csproj" UndefineProperties="GreenshotEdition" SetConfiguration="Configuration=$(GreenshotBaseConfiguration)" />
-    <ProjectReference Include="..\Greenshot.BuildTasks\Greenshot.BuildTasks.csproj" ReferenceOutputAssembly="false" ExcludeAssets="all" UndefineProperties="GreenshotEdition" SetConfiguration="Configuration=$(GreenshotBaseConfiguration)" />
+    <!-- The edition and the architecture only change Greenshot.exe, the libraries are the same (and built as Debug or Release for DebugLight and ReleaseLight) -->
+    <ProjectReference Include="..\Greenshot.Base\Greenshot.Base.csproj" UndefineProperties="GreenshotEdition;GreenshotArchitecture" SetConfiguration="Configuration=$(GreenshotBaseConfiguration)" />
+    <ProjectReference Include="..\Greenshot.Editor\Greenshot.Editor.csproj" UndefineProperties="GreenshotEdition;GreenshotArchitecture" SetConfiguration="Configuration=$(GreenshotBaseConfiguration)" />
+    <ProjectReference Include="..\Greenshot.BuildTasks\Greenshot.BuildTasks.csproj" ReferenceOutputAssembly="false" ExcludeAssets="all" UndefineProperties="GreenshotEdition;GreenshotArchitecture" SetConfiguration="Configuration=$(GreenshotBaseConfiguration)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -139,7 +158,7 @@
     </PackageReference>
   </ItemGroup>
 
-  <UsingTask TaskName="EmojiDataTask" TaskFactory="TaskHostFactory" AssemblyFile="..\Greenshot.BuildTasks\bin\$(GreenshotBaseConfiguration)\$(TargetFramework)\Greenshot.BuildTasks.dll" />
+  <UsingTask TaskName="EmojiDataTask" TaskFactory="TaskHostFactory" AssemblyFile="..\Greenshot.BuildTasks\bin\$(GreenshotBaseConfiguration)\$(GreenshotLibraryTargetFramework)\Greenshot.BuildTasks.dll" />
 
   <!-- After ResolveProjectReferences: that builds Greenshot.BuildTasks, in a clean build its dll doesn't exist before (BeforeBuild is too early) -->
   <Target Name="GenerateEmojiTestTxtFile" AfterTargets="ResolveProjectReferences" Condition="'$(BuildingProject)' == 'true' And '$(DesignTimeBuild)' != 'true'" Inputs="..\Greenshot.Editor\Controls\Emoji\emoji-test.txt" Outputs="$(TargetDir)emojis.xml">

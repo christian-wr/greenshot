@@ -174,6 +174,16 @@ begin
     end;
   end;
 
+#ifndef IsLightEdition
+  // The ARM64 build of Greenshot.exe needs .NET Framework 4.8.1, the first one that runs ARM64 code natively (Windows 11 has it)
+  if IsArm64 then
+  begin
+    Result := IsDotNetInstalled(net481, 0);
+    if not Result then
+      SuppressibleMsgBox(FmtMessage(SetupMessage(msgWinVersionTooLowError), ['.NET Framework', '4.8.1']), mbCriticalError, MB_OK, IDOK);
+    Exit;
+  end;
+#endif
   // Check for .NET and install 4.8.0 if we don't have it
   Result := IsDotNetInstalled(net48, 0); //Returns True if .NET Framework version 4.6.2 is installed, or a compatible version such as 4.8.0
   if not Result then

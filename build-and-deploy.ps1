@@ -14,6 +14,8 @@ $RepoPath = "."  # Replace with your local repo path
 $BuildArtifactsPath = "$RepoPath\src\Greenshot\bin\Release\net480"
 # Greenshot Light is its own build of Greenshot.exe, made by the Release build (see Greenshot.csproj)
 $LightBuildArtifactsPath = "$RepoPath\src\Greenshot\bin\Release-Light\net480"
+# The full version for ARM64 Windows, also made by the Release build (see BuildArm64Edition in Greenshot-Installer.csproj)
+$Arm64BuildArtifactsPath = "$RepoPath\src\Greenshot\bin\Release-ARM64\net481"
 $ArtifactsPath = "$RepoPath\artifacts"
 $PortableFilesPath = "$ArtifactsPath\portable-files"
 $SolutionFile = "$RepoPath\src\Greenshot.sln"
@@ -93,6 +95,13 @@ $LightPortableFilesPath = "$ArtifactsPath\portable-files-light"
 $LightZipArtifactPath = "$ArtifactsPath\Greenshot-Light-PORTABLE-$Version-RELEASE.zip"
 Compress-Archive -Path "$LightPortableFilesPath/*" -DestinationPath $LightZipArtifactPath -Force
 
+# Create the ARM64 ZIP Archive (the installer has the ARM64 build already)
+Write-Host "Creating ARM64 ZIP archive..."
+$Arm64PortableFilesPath = "$ArtifactsPath\portable-files-arm64"
+./prepare-portable.ps1 -RepositoryRootPath . -BuildArtifactsPath $Arm64BuildArtifactsPath -OutputPath $Arm64PortableFilesPath
+$Arm64ZipArtifactPath = "$ArtifactsPath\Greenshot-ARM64-PORTABLE-$Version-RELEASE.zip"
+Compress-Archive -Path "$Arm64PortableFilesPath/*" -DestinationPath $Arm64ZipArtifactPath -Force
+
 # Create Git Tag
 Write-Host "Creating Git tag..."
 cd $RepoPath
@@ -141,7 +150,8 @@ $FilesToUpload = @(
     $ExeArtifactPath,
     $LightExeArtifactPath,
     $ZipArtifactPath,
-    $LightZipArtifactPath
+    $LightZipArtifactPath,
+    $Arm64ZipArtifactPath
 )
 
 foreach ($file in $FilesToUpload) {

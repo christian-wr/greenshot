@@ -100,7 +100,7 @@ namespace Greenshot.Base.Core
                 environment.Append(" Portable");
             }
 
-            environment.Append(" (" + OsInfo.Bits + " bit)");
+            environment.Append(" (" + OsInfo.Bits + " bit, " + OsInfo.ProcessArchitectureName + ")");
 
             if (newline)
             {
@@ -136,7 +136,7 @@ namespace Greenshot.Base.Core
                 }
 
                 environment.Append($"OS: {OsInfo.Name}");
-                environment.Append($" x{OsInfo.Bits}");
+                environment.Append($" {OsInfo.OsArchitectureName}");
                 environment.Append($" {OsInfo.VersionString}");
                 if (newline)
                 {
@@ -271,10 +271,37 @@ namespace Greenshot.Base.Core
     /// </summary>
     public static class OsInfo
     {
+        private const ushort IMAGE_FILE_MACHINE_I386 = 0x014C;
+        private const ushort IMAGE_FILE_MACHINE_AMD64 = 0x8664;
+        private const ushort IMAGE_FILE_MACHINE_ARM64 = 0xAA64;
+
+        private static readonly Lazy<Architecture> _osArchitecture = new(GetOsArchitecture);
+
         /// <summary>
         /// Determines if the current application is 32 or 64-bit.
         /// </summary>
         public static int Bits => IntPtr.Size * 8;
+
+        /// <summary>
+        /// The processor architecture Greenshot runs as: X64, Arm64 (the ARM64 build, see Greenshot.csproj) or X86 (Greenshot Light on 32-bit Windows).
+        /// </summary>
+        public static Architecture ProcessArchitecture => RuntimeInformation.ProcessArchitecture;
+
+        /// <summary>
+        /// The processor architecture of Windows. Unlike RuntimeInformation.OSArchitecture it is Arm64 also for the x64 build,
+        /// which ARM64 Windows runs emulated.
+        /// </summary>
+        public static Architecture OsArchitecture => _osArchitecture.Value;
+
+        /// <summary>
+        /// ProcessArchitecture as Windows names it, e.g. x64 or ARM64
+        /// </summary>
+        public static string ProcessArchitectureName => ToName(ProcessArchitecture);
+
+        /// <summary>
+        /// OsArchitecture as Windows names it, e.g. x64 or ARM64
+        /// </summary>
+        public static string OsArchitectureName => ToName(OsArchitecture);
 
         /// <summary>
         /// Gets the name of the operating system running on this computer.
@@ -285,5 +312,46 @@ namespace Greenshot.Base.Core
         /// Gets the version string of the operating system running on this computer.
         /// </summary>
         public static string VersionString => $"build {Environment.OSVersion.Version.Build}";
+
+        private static string ToName(Architecture architecture) => architecture switch
+        {
+            Architecture.X86 => "x86",
+            Architecture.X64 => "x64",
+            Architecture.Arm => "ARM",
+            Architecture.Arm64 => "ARM64",
+            _ => architecture.ToString()
+        };
+
+        private static Architecture GetOsArchitecture()
+        {
+            try
+            {
+                // Also tells an emulated process the architecture of the machine
+                if (IsWow64Process2(GetCurrentProcess(), out _, out ushort nativeMachine))
+                {
+                    switch (nativeMachine)
+                    {
+                        case IMAGE_FILE_MACHINE_I386:
+                            return Architecture.X86;
+                        case IMAGE_FILE_MACHINE_AMD64:
+                            return Architecture.X64;
+                        case IMAGE_FILE_MACHINE_ARM64:
+                            return Architecture.Arm64;
+                    }
+                }
+            }
+            catch (EntryPointNotFoundException)
+            {
+                // Windows 10 before 1709
+            }
+            return RuntimeInformation.OSArchitecture;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool IsWow64Process2(IntPtr process, out ushort processMachine, out ushort nativeMachine);
+
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetCurrentProcess();
     }
 }

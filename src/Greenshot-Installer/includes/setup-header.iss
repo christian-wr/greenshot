@@ -14,10 +14,11 @@ AppSupportURL=https://getgreenshot.org
 AppUpdatesURL=https://getgreenshot.org
 AppVerName={#AppDisplayName} {#Version}
 AppVersion={#Version}
-ArchitecturesInstallIn64BitMode=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible or arm64
 #ifndef IsLightEdition
-; Greenshot.exe of the full version is a 64-bit exe (see Greenshot.csproj), Greenshot Light (AnyCPU) also runs on 32-bit Windows
-ArchitecturesAllowed=x64compatible
+; Greenshot.exe of the full version is a 64-bit exe (see Greenshot.csproj): x64, or ARM64 on ARM64 Windows (see core-files.iss).
+; Greenshot Light (AnyCPU) also runs on 32-bit Windows.
+ArchitecturesAllowed=x64compatible or arm64
 #endif
 Compression=lzma2/ultra64
 SolidCompression=yes
