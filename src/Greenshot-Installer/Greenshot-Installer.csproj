@@ -93,10 +93,9 @@
     </PropertyGroup>
     <!-- greenshot-mcp.exe is published after everything else (see PublishMcpServer), remove the one of a previous build -->
     <Delete Files="$(Arm64OutputDir)\greenshot-mcp.exe" />
-    <!-- Its own restore (net481, win-arm64, in obj\ARM64): ExcludeRestorePackageImports makes MSBuild evaluate the project again for the build,
-         with what the restore wrote, as msbuild -restore does -->
-    <MSBuild Projects="$(SolutionDir)Greenshot\Greenshot.csproj" Targets="Restore" Properties="Configuration=$(Configuration);GreenshotArchitecture=ARM64;ExcludeRestorePackageImports=true" />
-    <MSBuild Projects="$(SolutionDir)Greenshot\Greenshot.csproj" Targets="Build" Properties="Configuration=$(Configuration);GreenshotArchitecture=ARM64" />
+    <!-- With its own restore (net481, in obj\ARM64), so in a msbuild -restore of its own: only that ignores the imports which don't exist
+         before the restore (e.g. MSBuild.Community.Tasks, see Directory.Build.targets) and evaluates the project again for the build -->
+    <Exec Command="&quot;$(MSBuildToolsPath)\MSBuild.exe&quot; &quot;$(SolutionDir)Greenshot\Greenshot.csproj&quot; -restore -t:Build -nologo -v:minimal -p:Configuration=$(Configuration) -p:GreenshotArchitecture=ARM64" />
     <MSBuild Projects="$(SolutionDir)greenshot-proxy\greenshot-proxy.vcxproj;$(SolutionDir)greenshot-proxy\greenshot-cli.vcxproj" Targets="Build" Properties="Configuration=$(Configuration);Platform=ARM64;SolutionDir=$(SolutionDir)" />
     <ItemGroup>
       <!-- Not the programs built for ARM64 (with their .config and .pdb), and not what is made for this directory below -->
